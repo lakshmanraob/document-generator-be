@@ -1,0 +1,41 @@
+Title: As a phlebotomist, I want to document the blood collection procedure
+
+Priority: High
+Story Points: 8
+
+Description:
+Record all aspects of the blood collection procedure including timestamps, methods, and any complications.
+
+Persona:
+- Primary: Phlebotomists
+- Secondary: Nurses, Quality Control Staff
+
+Pre-requisites:
+- Completed patient verification
+- Generated specimen labels
+- Active collection order
+
+Integrations:
+- Electronic Health Record (EHR)
+- Laboratory Information System
+- Clinical Documentation System
+
+Acceptance Criteria:
+1. Record collection date and time
+2. Document:
+   - Collection site
+   - Number of attempts
+   - Collection method used
+   - Tube types and volumes
+   - Any complications or failures
+   - Patient consent
+3. Capture phlebotomist's electronic signature
+4. Allow addition of notes/comments
+5. Record patient positioning and special conditions
+6. Document any deviations from standard procedure
+7. Enable photo documentation of difficult cases
+8. Auto-calculate collection duration
+
+Compliance Requirements:
+- Must meet HIPAA documentation standards
+- Maintain complete audit trail

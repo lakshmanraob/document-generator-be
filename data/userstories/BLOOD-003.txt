@@ -1,0 +1,40 @@
+Title: As a phlebotomist, I want to generate and print accurate specimen labels
+
+Priority: High
+Story Points: 5
+
+Description:
+Generate standardized labels for blood collection tubes with all required information.
+
+Persona:
+- Primary: Phlebotomists
+- Secondary: Lab Technicians
+
+Pre-requisites:
+- Completed patient verification
+- Active blood collection order
+- Label printer connection
+
+Integrations:
+- Label Printing System
+- Laboratory Information System
+
+Acceptance Criteria:
+1. Labels include:
+   - Patient full name
+   - Patient ID/MRN
+   - Date and time of collection
+   - Collector's ID
+   - Test codes
+   - Collection tube type
+   - Barcode
+2. Labels are printed only after patient verification
+3. System suggests correct number and type of tubes needed
+4. Labels are waterproof and scannable
+5. Support for different label sizes based on tube types
+6. Ability to reprint labels with proper authorization
+7. All label generations are logged
+
+Technical Requirements:
+- Compatible with standard laboratory label printers
+- Barcode must meet laboratory scanning requirements

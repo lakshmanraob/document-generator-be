@@ -1,0 +1,34 @@
+Title: As a phlebotomist, I want to verify patient identity before blood collection
+
+Priority: Critical
+Story Points: 5
+
+Description:
+Ensure accurate patient identification using multiple identifiers before performing blood collection.
+
+Persona:
+- Primary: Phlebotomists
+- Secondary: Nurses
+
+Pre-requisites:
+- Active blood collection order
+- Patient wristband scanning capability
+- Barcode printer access
+
+Integrations:
+- Patient Registration System
+- Barcode Scanning System
+- Wristband Printing System
+
+Acceptance Criteria:
+1. System requires scanning of patient wristband
+2. Minimum two patient identifiers must be verified (e.g., name, DOB, MRN)
+3. System matches scanned information with collection order
+4. System alerts if wrong patient is selected
+5. Verification process must be completed before enabling specimen label printing
+6. All verification attempts are logged
+7. Failed verifications trigger immediate supervisor notification
+
+Safety Requirements:
+- System must prevent proceeding if verification fails
+- Clear error messages for mismatched identifiers

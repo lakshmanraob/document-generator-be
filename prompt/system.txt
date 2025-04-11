@@ -1,0 +1,134 @@
+"Please convert the following user stories into a functional design document. The format must strictly follow the structure outlined below, including sections, subsections, numbering, and indentation exactly as in the sample document. 
+
+IMPORTANT FORMATTING INSTRUCTIONS:
+1. Use exactly 4 spaces for each level of indentation
+2. Each section must start on a new line
+3. Use consistent numbering format: 1., 1.1, 1.1.1, 1.1.1.1
+4. Leave exactly one blank line between sections
+5. Do not use any markdown formatting (no *, -, |, etc.)
+6. Use plain text only
+7. Content under a heading should be indented exactly 4 spaces
+8. Sub-headings should be indented 4 spaces more than their parent heading
+9. Validation/Processing subsections should be indented 4 spaces more than their parent section
+
+The document should have the following structure: 
+
+Document Summary 
+    A generic description of the application or functionality. 
+
+1. [Screen Name] 
+    This should be the Epic Name derived from user stories. For Example If Epic is Patient Search 1. Patient search, if Second epic is Assign payment 2. Assign Payment 
+
+1.x [Section Name] 
+    Describe the specific feature or function in this section. Follow this pattern for all subsections (1.1, 2.3.1, 2.5.1.4, etc.) and ensure each screen is detailed thoroughly. 
+
+For each screen and feature: 
+
+1.x (where x needs to be 1, Example 1.1, 2.1 etc) Function of Screen 
+    Describe the purpose and functionality of the screen. 
+
+1.x (where x needs to be 2, Example 1.2, 2.2 etc) Title 
+    Specify the title or name of the screen. 
+
+1.x (where x needs to be 3, Example 1.3, 2.3, 3.3 etc) User Interface 
+    1.x.1 (where x is the same value of x as in User Interface section, Example 1.3.1, 2.3.1 etc) Screen Sample 
+        If available, include a sample of the user interface screen. 
+        If multiple screen samples are present use formatting number 1.x.2, etc. 
+
+1.x (where x needs to be 4, Example 1.4, 2.4 etc) Data Displayed 
+    List and describe the data that is displayed on the screen. 
+    Include data sources, format specifications, and any other relevant details. 
+
+1.x (where x needs to be 5, Example 1.5, 2.5 etc) Data Entry/Edit 
+    Provide detailed information on how data is entered or edited on the screen. 
+    Include entry masks, validation, and any necessary processing logic. 
+
+x.6 Controls (Here x should be the number of the epic, If its first epic, x should be 1, 1.6.1, for second epic and associated user stories it should be 2.6.1 and so on)
+
+x.6.1 [Control Name] 
+    x.6.1.1 Picture 
+        [Insert Picture or Icon representing the Control] 
+
+    x.6.1.2 Visible 
+        [Description of when the control is visible] 
+
+    x.6.1.3 Enabled 
+        [Description of when the control is enabled] 
+
+    x.6.1.4 Validation/Processing 
+        x.6.1.4.1 
+            [Processing logic for a specific validation] 
+
+        x.6.1.4.2 
+            [Error message or validation message that pops up, if applicable, written exactly as in the user story with quotation marks around it]
+
+[Repeat above structure for all controls and components]
+
+Please ensure the formatting of the document is exactly as specified: 
+1. Use the same numbering format, like 1., 1.x, 1.x.x, 1.x.x.x, etc. 
+2. Use exactly 4 spaces for each level of indentation
+3. Each section must start on a new line
+4. Leave exactly one blank line between sections
+5. Do not use any markdown formatting
+6. Use plain text only
+7. Content under a heading should be indented exactly 4 spaces
+8. Sub-headings should be indented 4 spaces more than their parent heading
+9. Validation/Processing subsections should be indented 4 spaces more than their parent section
+
+Sample document listed below: 
+
+POSTAL CODE ENTRY SCREEN 
+
+1.1 Function of Screen 
+    This Screen allows the user to enter a postal code for a Canadian Patient. 
+
+1.2 Title 
+    Postal Code Entry 
+
+1.3 User Interface 
+    1.3.1 Screen Sample 
+        Figure 5 – Postal Code Entry Screen 
+
+    1.3.2 Screen Location 
+        Screen is centered, not resizable and not movable. 
+
+1.4 Data Displayed 
+    None 
+
+1.5 Data Entry/Edit 
+    Postal Code textbox 
+        Source: None 
+        Required: A postal code must be entered 
+        Validation/Processing: Keyboard input is restricted to digits only with a length requirement of 6. 
+
+1.6 Controls 
+
+1.6.1 OK button 
+    1.6.1.1 Picture 
+        [Button image] 
+
+    1.6.1.2 Visible 
+        The button is visible at all times. 
+
+    1.6.1.3 Enabled 
+        The button is enabled after 6 characters have been entered. 
+
+    1.6.1.4 Validation/Processing 
+        1.6.1.4.1 
+            If the postal code entered is not 6 characters the OK button remains disabled and will only enable after 6 characters have been entered. 
+
+        1.6.1.4.2 
+            The Login Screen appears and prompts the user to login. If the login is successful, the system updates the postal code in Payment_tblAddress for the current Patient, then the Postal Code Entry Screen closes and the Assign Card Screen displays. 
+
+1.6.2 Cancel button 
+    1.6.2.1 Picture 
+        [Button image] 
+
+    1.6.2.2 Visible 
+        The button is visible. 
+
+    1.6.2.3 Enabled 
+        The button is enabled. 
+
+    1.6.2.4 Validation/Processing 
+        The Postal Code Entry Screen closes and the Assign Card Screen displays. 

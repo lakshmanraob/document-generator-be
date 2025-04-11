@@ -1,0 +1,37 @@
+Title: As a healthcare provider, I want to create a blood collection order for a patient
+
+Priority: High
+Story Points: 8
+
+Description:
+Healthcare providers need to create blood collection orders with specific tests and requirements for patients.
+
+Persona: 
+- Primary: Physicians
+- Secondary: Nurse Practitioners, Physician Assistants
+
+Pre-requisites:
+- Active user account with appropriate permissions
+- Patient must be registered in the system
+- Valid laboratory test catalog integration
+
+Integrations:
+- Electronic Health Record (EHR) system
+- Laboratory Information System (LIS)
+- Test Catalog Service
+
+Acceptance Criteria:
+1. Provider can search and select a patient
+2. System displays patient's relevant medical history and previous lab tests
+3. Provider can select multiple blood tests from the test catalog
+4. System automatically calculates required blood volume based on selected tests
+5. Provider can specify collection priority (Routine/STAT/Urgent)
+6. Provider can add special instructions for collection
+7. System validates for duplicate orders within 24 hours
+8. Order is automatically sent to LIS upon completion
+9. Order details are recorded in patient's EHR
+
+Technical Notes:
+- Must comply with HL7 messaging standards
+- Integration with existing hospital systems required
+- Audit trail must be maintained
