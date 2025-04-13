@@ -1,0 +1,57 @@
+# docker-compose.yml (for EC2 deployment using ECR images)
+version: '3.8'
+
+services:
+  # Backend Service (using ECR image)
+  backend:
+    # --- IMPORTANT: Replace ACCOUNT_ID and REGION ---
+    image: <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<BACKEND_REPO>:latest
+    container_name: gxp_backend
+    environment:
+      # Reads the GOOGLE_API_KEY from the .env file in the same directory
+      # or from the shell environment where 'docker-compose up' is run.
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+    # Port 8000 is used internally by the backend application.
+    # It does NOT need to be exposed to the EC2 host unless you need direct access for debugging.
+    # The frontend will connect to 'backend:8000' over the internal Docker network.
+    # ports:
+    #   - "8000:8000" # Uncomment only if direct host access is needed for debugging
+    volumes:
+      # Use named volumes for persistent storage managed by Docker
+      # - gxp_uploads:/app/uploads # Assuming backend expects uploads here
+      - gxp_output:/app/output   # Assuming backend saves output here
+      # Add prompt volume if needed and not baked into image
+      # - gxp_prompt:/app/prompt
+    networks:
+      - gxp-net # Connect to the shared network
+    restart: unless-stopped
+
+  # Frontend Service (using ECR image)
+  frontend:
+    # --- IMPORTANT: Replace ACCOUNT_ID and REGION ---
+    image: <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<FRONTEND_REPO>:latest
+    container_name: gxp_frontend
+    ports:
+      # Map host port 8051 to container port 8051 (as requested)
+      - "8051:8051"
+    environment:
+      # Pass the internal backend URL to the frontend container.
+      # 'backend' is the service name defined above, reachable on the internal network.
+      # Make sure your frontend code reads this environment variable.
+      - API_BASE_URL=http://backend:8000
+    depends_on:
+      - backend # Wait for the backend service container to start first
+    networks:
+      - gxp-net # Connect to the shared network
+    restart: unless-stopped
+
+# Define the shared network allowing inter-service communication
+networks:
+  gxp-net:
+    driver: bridge
+
+# Define named volumes for persistent data storage
+volumes:
+  # gxp_uploads:
+  gxp_output:
+  # gxp_prompt: # Define if using prompt volume

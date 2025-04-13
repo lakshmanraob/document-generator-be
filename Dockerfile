@@ -23,6 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code into the container at /app
 # Copy the entire src directory
 COPY ./src ./src
+# --- Added COPY instruction for the prompt directory ---
+COPY ./prompt ./prompt
 # Create necessary directories if they don't exist in the image
 # Although the API creates them, it's good practice for permissions etc.
 RUN mkdir -p uploads generated_docs

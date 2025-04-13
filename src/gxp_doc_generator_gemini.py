@@ -1,3 +1,4 @@
+# src/gxp_doc_generator_gemini.py
 import os
 import json
 from pathlib import Path
@@ -12,342 +13,398 @@ from datetime import datetime
 import google.generativeai as genai
 
 class GxPDocumentGenerator:
-    def __init__(self):
+    def __init__(self, user_stories_path=None, db_schema_path=None): # Accept paths
         # Load environment variables
         load_dotenv()
 
         # Configure Gemini API
-        genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-        self.model = genai.GenerativeModel("gemini-2.0-flash")
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            raise ValueError("Missing GOOGLE_API_KEY environment variable.")
+        genai.configure(api_key=api_key)
 
-        # Initialize paths
+        # Consider making the model configurable or handling potential errors
+        try:
+            # Use a known, stable model. Ensure it's available.
+            # Check Gemini documentation for current model names.
+            self.model = genai.GenerativeModel("gemini-1.5-flash")
+        except Exception as e:
+            print(f"Error initializing Gemini model: {e}")
+            # Handle error appropriately, maybe raise it or set self.model to None
+            raise ValueError(f"Could not initialize Gemini model: {e}")
+
+        # Base path is the directory containing the 'src' directory (project root)
         self.base_path = Path(__file__).parent.parent
-        self.data_path = self.base_path / 'data'
+        # Output path relative to the project root
         self.output_path = self.base_path / 'output'
+        # Prompt path relative to the project root
         self.prompt_path = self.base_path / 'prompt'
-        self.output_path.mkdir(exist_ok=True)
+        self.output_path.mkdir(parents=True, exist_ok=True) # Ensure parent dirs exist
+        self.prompt_path.mkdir(parents=True, exist_ok=True) # Ensure prompt dir exists
         self.default_font_name = "Arial"
+
+        # Store provided input file paths as Path objects
+        self.user_stories_path = Path(user_stories_path) if user_stories_path else None
+        self.db_schema_path = Path(db_schema_path) if db_schema_path else None
 
     def load_system_prompt(self):
         """Load the system prompt template"""
-        with open(self.prompt_path / 'system.txt', 'r') as f:
-            return f.read()
+        # Construct path relative to base path
+        prompt_file = self.prompt_path / 'system.txt'
+        if not prompt_file.exists():
+             # Attempt alternative path if structure differs slightly
+             prompt_file = Path(__file__).parent / 'prompt' / 'system.txt'
+             if not prompt_file.exists():
+                raise FileNotFoundError(f"Error: System prompt file not found at expected locations relative to project root or script location.")
+
+        try:
+            print(prompt_file)
+            with open(prompt_file, 'r', encoding='utf-8') as f: # Specify encoding
+                return f.read()
+        except Exception as e:
+            print(f"Error reading system prompt file {prompt_file}: {e}")
+            raise # Re-raise the exception after logging
+
 
     def load_user_stories(self):
-        """Load all user stories from the data/userstories directory"""
-        stories = []
-        stories_path = self.data_path / 'userstories'
-        for story_file in stories_path.glob('BLOOD-*.txt'):
-            with open(story_file, 'r') as f:
-                stories.append(f.read())
-        return stories
+        """Load user stories content from the provided file path."""
+        if not self.user_stories_path:
+             raise ValueError("User stories file path was not provided to the generator.")
+        if not self.user_stories_path.exists():
+            raise FileNotFoundError(f"User stories file not found at the provided path: {self.user_stories_path}")
+        try:
+            with open(self.user_stories_path, 'r', encoding='utf-8') as f: # Specify encoding
+                 # Return as a list containing one item (the whole file content)
+                 # to match the expected format in generate_gxp_content
+                return [f.read()]
+        except Exception as e:
+            print(f"Error reading user stories file {self.user_stories_path}: {e}")
+            raise
+
 
     def load_database_design(self):
-        """Load database design from the data/database-design directory"""
-        with open(self.data_path / 'database-design' / 'blood_collection_schema.sql', 'r') as f:
-            return f.read()
+        """Load database design content from the provided file path."""
+        if not self.db_schema_path:
+            raise ValueError("Database schema file path was not provided to the generator.")
+        if not self.db_schema_path.exists():
+            raise FileNotFoundError(f"Database schema file not found at the provided path: {self.db_schema_path}")
+        try:
+            with open(self.db_schema_path, 'r', encoding='utf-8') as f: # Specify encoding
+                return f.read()
+        except Exception as e:
+            print(f"Error reading database schema file {self.db_schema_path}: {e}")
+            raise
 
     def generate_gxp_content(self, system_prompt, user_stories, db_design):
         """Generate GxP documentation content using Gemini API"""
+        if not self.model:
+             raise RuntimeError("Gemini model was not initialized successfully.")
         try:
-            # Prepare the prompt
+            # Ensure user_stories is joined correctly if it's a list
+            user_stories_text = "\n".join(user_stories) # Use newline as separator
+
+            # Ensure inputs are not excessively large - add checks if needed
+            # Example check (adjust limits as needed):
+            # MAX_INPUT_LENGTH = 100000 # Example character limit
+            # if len(user_stories_text) > MAX_INPUT_LENGTH or len(db_design) > MAX_INPUT_LENGTH:
+            #     raise ValueError("Input data exceeds maximum allowed length.")
+
             prompt = f"""
-            Based on the following inputs, generate a GxP Function Detail Design Document. Structure the content with clear headings and subheadings, following a hierarchical numbering system (e.g., 1., 1.1, 1.1.1, etc.). Ensure each section is properly delineated and the content is well-organized.
-            
+            Based on the following inputs, generate a GxP Function Detail Design Document. Structure the content with clear headings and subheadings, following a hierarchical numbering system (e.g., 1., 1.1, 1.1.1, etc.). Ensure each section is properly delineated and the content is well-organized. Output should be PLAIN TEXT suitable for a .txt file, using indentation for structure.
+
             User Stories:
             {'-' * 80}
-            {chr(10).join(user_stories)}
+            {user_stories_text}
             {'-' * 80}
 
             Database Design:
             {'-' * 80}
             {db_design}
             {'-' * 80}
-            
+
+            System Requirements/Instructions:
+            {'-' * 80}
             {system_prompt}
+            {'-' * 80}
             """
 
-            # Initialize chat with system prompt
-            chat = self.model.start_chat(history=[
-                {
-                    "role": "user",
-                    "parts": [{"text": system_prompt}]
-                },
-                {
-                    "role": "model",
-                    "parts": [{"text": "I understand. I will help create a GxP Function Detail Design Document following the specified format with PLAIN TEXT ONLY."}]
-                }
-            ])
+            # Initialize chat with system prompt (optional, depends on model preference)
+            # Some models work better with direct generation requests
+            # chat = self.model.start_chat(history=[
+            #     {
+            #         "role": "user",
+            #         "parts": [{"text": system_prompt}]
+            #     },
+            #     {
+            #         "role": "model",
+            #         "parts": [{"text": "I understand. I will help create a GxP Function Detail Design Document following the specified format with PLAIN TEXT ONLY."}]
+            #     }
+            # ])
+            # response = chat.send_message(prompt)
 
-            # Generate content using chat
-            response = chat.send_message(prompt)
+            # Direct generation request
+            response = self.model.generate_content(prompt)
 
-            # Return the generated content
+
+            # Check for safety ratings or blocks if applicable
+            # (Refer to Google AI documentation for handling safety attributes)
+            # if response.prompt_feedback.block_reason:
+            #     raise ValueError(f"Content generation blocked due to: {response.prompt_feedback.block_reason}")
+
+            # Return the generated text
             return response.text
 
         except Exception as e:
-            print(f"Error generating content: {str(e)}")
+            print(f"Error generating content via Gemini API: {str(e)}")
+            # Consider logging traceback here for complex errors
             raise
 
-    def preprocess_content(self, content):
-        """Remove markup symbols and formatting characters"""
-        # Remove code blocks
-        content = re.sub(r"```.*?```", "", content, flags=re.DOTALL)
-        # Remove table-like structures
-        content = re.sub(r"\|.*\|", "", content)
-        # Remove any other markup symbols
-        content = re.sub(r"[*+-]+", "", content)
-        # Remove extra spaces and newlines
-        content = re.sub(r"\s+", " ", content).strip()
-
-        return content
 
     def parse_sections(self, content):
-        """Parse content into sections with proper hierarchy and indentation"""
+        """Parse content into sections with proper hierarchy and indentation for TXT output"""
         sections = []
         lines = content.split('\n')
-        current_section = None
-        section_stack = []  # Keep track of parent sections
-        
+        current_section_info = {'level': 0, 'indent_level': -1} # Track current nesting
+        section_stack = [{'level': 0, 'indent_level': -1}] # Stack to manage hierarchy
+
         for line in lines:
-            line = line.rstrip()  # Remove trailing whitespace but keep indentation
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line: # Skip empty lines
                 continue
-                
-            # Check if line is a heading (starts with numbers)
-            heading_match = re.match(r'^(\d+(\.\d+)*)\.\s+(.+)$', line)
+
+            # Try to match heading format (e.g., "1. Heading", "1.2. Subheading")
+            heading_match = re.match(r'^\s*(\d+(\.\d+)*)\.?\s+(.+)$', line)
+
             if heading_match:
-                # Calculate heading level based on number of dots
                 heading_number = heading_match.group(1)
-                dots_count = heading_number.count('.')
-                level = dots_count + 1
-                
-                # Create section object
-                current_section = {
+                level = heading_number.count('.') + 1
+                heading_text = heading_match.group(3).strip()
+                # Use heading level to determine base indent
+                indent_level = level - 1
+
+                current_section_info = {
                     'type': 'heading',
                     'level': level,
-                    'text': line.strip(),
+                     # Reconstruct text for consistency
+                    'text': f"{heading_number}. {heading_text}",
                     'number': heading_number,
-                    'dots_count': dots_count
+                    'indent_level': indent_level
                 }
-                
-                # Update section stack
-                while section_stack and section_stack[-1]['level'] >= level:
+                sections.append(current_section_info)
+
+                # Manage stack for potential future child content indentation
+                while section_stack[-1]['level'] >= level:
                     section_stack.pop()
-                if section_stack:
-                    current_section['parent_section'] = section_stack[-1]
-                section_stack.append(current_section)
-                sections.append(current_section)
+                section_stack.append(current_section_info)
+
             else:
-                # For content lines
-                if current_section:
-                    content_section = {
-                        'type': 'content',
-                        'level': current_section['level'],
-                        'text': line.strip(),
-                        'parent_section': current_section,
-                        'dots_count': current_section['dots_count']
-                    }
-                    sections.append(content_section)
-        
+                # Treat as content line if not a heading
+                # Indent based on the last known heading's level
+                parent_section = section_stack[-1]
+                # Content is indented one level deeper than its parent heading
+                indent_level = parent_section['indent_level'] + 1
+
+                content_section = {
+                    'type': 'content',
+                    'level': parent_section['level'], # Associated with parent heading level
+                    'text': stripped_line, # Store the stripped content line
+                    'indent_level': indent_level
+                }
+                sections.append(content_section)
+
         return sections
 
     def create_word_document(self, content):
-        """Create a Word document with the generated content"""
-        doc = Document()
-        
-        # Define styles first
-        self.define_styles(doc)
-        
-        # Add title page
-        title = doc.add_paragraph('GxP Function Detail Design Document', style='Title')
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Add timestamp on title page
-        timestamp = doc.add_paragraph(f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', style='Timestamp')
-        timestamp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        
-        # Add page break after title page
-        doc.add_page_break()
-        
-        # Add table of contents placeholder
-        doc.add_paragraph('Table of Contents', style='TOC Heading')
-        doc.add_paragraph('', style='Normal')  # Placeholder for TOC
-        doc.add_page_break()
-        
-        # Process content
-        sections = self.parse_sections(content)
-        
-        # Add sections to document
-        for section in sections:
-            # Calculate indentation (40 points = approximately 4 spaces)
-            indent_points = Pt(section['indent_level'] * 40)
-            
-            if section['type'] == 'heading':
-                # For headings, use the built-in heading style
-                heading = doc.add_heading(section['text'], level=section['level'])
-                heading.paragraph_format.left_indent = indent_points
-                heading.paragraph_format.space_after = Pt(12)
-            else:
-                # For content, use normal style with proper indentation
-                para = doc.add_paragraph(section['text'], style='Normal')
-                para.paragraph_format.left_indent = indent_points
-                para.paragraph_format.space_after = Pt(6)
-                para.paragraph_format.space_before = Pt(6)
-        
-        # Save the document
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = self.output_path / f'GxP_Documentation_{timestamp}.docx'
-        doc.save(output_file)
-        return output_file
+        """Placeholder/Optional: Create a Word document with the generated content"""
+        print("Word document creation is currently optional/not fully implemented.")
+        # If needed, implement using the parse_sections logic adapted for Word styles/indentation
+        # Ensure self.define_styles(doc) is called and works correctly.
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = self.output_path / f'GxP_Documentation_{timestamp_str}.docx'
+        print(f"Placeholder for Word document at: {output_file}")
+        # Example:
+        # doc = Document()
+        # self.define_styles(doc)
+        # ... (add title, TOC placeholder, sections using parse_sections and doc.add_paragraph/heading) ...
+        # doc.save(output_file)
+        return None # Return None or the path if implemented
+
 
     def create_txt_document(self, content):
-        """Create a TXT document with the generated content"""
-        # Process content
+        """Create a TXT document with the generated content, using parsed sections"""
+        # Process content using the parser optimized for TXT structure
         sections = self.parse_sections(content)
-        print(sections)
-        
-        # Create the output text
+
         output_lines = []
-        
+
         # Add title and timestamp
         output_lines.append('GxP Function Detail Design Document')
         output_lines.append('')
         output_lines.append(f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
         output_lines.append('')
-        output_lines.append('Table of Contents')
-        output_lines.append('')
-        
-        last_section = None
-        
+        # output_lines.append('Table of Contents') # Optional TOC placeholder
+        # output_lines.append('')
+
+        last_section_level = 0
         # Add sections with proper indentation
-        for section in sections:
-            # Calculate base indentation based on dots in section number
+        for i, section in enumerate(sections):
+             # Add blank line between different top-level sections (level 1)
+             # or before a heading that's not immediately following another heading
             if section['type'] == 'heading':
-                # Add blank line between sections of same or lower level
-                if last_section and last_section['type'] == 'heading':
-                    if section['level'] <= last_section['level']:
-                        output_lines.append('')
-                
-                # Calculate indentation for headings
-                if section['dots_count'] == 0:  # Top level (1., 2., etc)
-                    indent = ''
-                else:
-                    # Each dot means one more level of indentation
-                    indent = '    ' * section['dots_count']
-                
-                output_lines.append(f"{indent}{section['text']}")
-                
-            else:  # Content
-                # Content is always indented one more level than its parent heading
-                if section['parent_section']:
-                    parent_dots = section['parent_section']['dots_count']
-                    
-                    # Special handling for Validation/Processing sections
-                    if 'Validation/Processing' in section['parent_section']['text']:
-                        indent = '    ' * (parent_dots + 2)
-                    else:
-                        indent = '    ' * (parent_dots + 1)
-                else:
-                    indent = '    '  # Default indentation for content
-                
-                output_lines.append(f"{indent}{section['text']}")
-            
-            last_section = section
-        
+                 # Add space before a new top-level heading if not the first heading
+                 if section['level'] == 1 and i > 0 and sections[i-1]['level'] > 0:
+                     output_lines.append('')
+                 # Add space before a heading if the previous line was content
+                 elif i > 0 and sections[i-1]['type'] == 'content':
+                      output_lines.append('')
+                 last_section_level = section['level'] # Track last heading level
+
+            # Calculate indentation based on indent_level from parse_sections
+            # Use 4 spaces per indent level
+            indent = '    ' * section['indent_level']
+
+            output_lines.append(f"{indent}{section['text']}")
+
         # Join lines with newlines
         output_text = '\n'.join(output_lines)
-        
+
         # Save the document
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = self.output_path / f'GxP_Documentation_{timestamp}.txt'
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(output_text)
-        
-        return output_file
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Ensure output path is used correctly relative to project root
+        output_file = self.output_path / f'GxP_Documentation_{timestamp_str}.txt'
+
+        try:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(output_text)
+            print(f"TXT document saved successfully to: {output_file}")
+        except Exception as e:
+            print(f"Error writing TXT file {output_file}: {e}")
+            raise
+
+        return output_file # Return the Path object
 
     def define_styles(self, doc):
-        """Define document styles"""
+        """Define document styles (Only relevant for create_word_document)"""
         styles = doc.styles
+        # Use default font name stored in self
+        default_font = self.default_font_name
 
-        # Title Style
+        # --- Define Custom Styles ---
+        # Style for the main title
         try:
-            title_style = styles['CustomTitle']
+            style = styles['CustomTitle']
         except KeyError:
-            title_style = styles.add_style('CustomTitle', WD_STYLE_TYPE.PARAGRAPH)
-        title_style.base_style = styles['Normal']
-        title_font = title_style.font
-        title_font.name = 'Arial'
-        title_font.size = Pt(24)
-        title_font.bold = True
-        title_style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title_style.paragraph_format.space_after = Pt(30)
+            style = styles.add_style('CustomTitle', WD_STYLE_TYPE.PARAGRAPH)
+        style.base_style = styles['Normal']
+        font = style.font
+        font.name = default_font
+        font.size = Pt(24)
+        font.bold = True
+        style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        style.paragraph_format.space_after = Pt(18)
 
-        # TOC Heading Style
+        # Style for the Table of Contents heading
         try:
-            toc_style = styles['TOC Heading']
+            style = styles['TOC Heading']
         except KeyError:
-            toc_style = styles.add_style('TOC Heading', WD_STYLE_TYPE.PARAGRAPH)
-        toc_style.font.name = 'Arial'
-        toc_style.font.size = Pt(16)
-        toc_style.font.bold = True
-        toc_style.paragraph_format.space_after = Pt(24)
+            style = styles.add_style('TOC Heading', WD_STYLE_TYPE.PARAGRAPH)
+        style.base_style = styles['Heading 1'] # Base on Heading 1 for outline level
+        font = style.font
+        font.name = default_font
+        font.size = Pt(16)
+        font.bold = True
+        style.paragraph_format.space_after = Pt(12)
+        style.paragraph_format.keep_with_next = True
 
-        # Timestamp Style
+        # Style for the timestamp
         try:
-            timestamp_style = styles['Timestamp']
+            style = styles['Timestamp']
         except KeyError:
-            timestamp_style = styles.add_style('Timestamp', WD_STYLE_TYPE.PARAGRAPH)
-        timestamp_style.base_style = styles['Normal']
-        timestamp_font = timestamp_style.font
-        timestamp_font.name = 'Arial'
-        timestamp_font.size = Pt(10)
-        timestamp_font.italic = True
-        timestamp_style.paragraph_format.space_after = Pt(30)
+            style = styles.add_style('Timestamp', WD_STYLE_TYPE.PARAGRAPH)
+        style.base_style = styles['Normal']
+        font = style.font
+        font.name = default_font
+        font.size = Pt(10)
+        font.italic = True
+        style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        style.paragraph_format.space_after = Pt(30)
 
+        # --- Customize Base Styles ---
         # Normal Style
-        normal_style = styles['Normal']
-        normal_font = normal_style.font
-        normal_font.name = 'Arial'
-        normal_font.size = Pt(11)
-        normal_style.paragraph_format.space_after = Pt(6)
-        normal_style.paragraph_format.line_spacing = 1.15
+        style = styles['Normal']
+        font = style.font
+        font.name = default_font
+        font.size = Pt(11)
+        style.paragraph_format.space_after = Pt(6)
+        style.paragraph_format.line_spacing = 1.15
 
-        # Heading Styles
+        # Ensure built-in heading styles use the default font
         for i in range(1, 10):
-            heading_style = styles.add_style(f'Custom Heading {i}', WD_STYLE_TYPE.PARAGRAPH)
-            heading_style.font.name = 'Arial'
-            heading_style.font.bold = True
-            # Decrease size for each heading level
-            heading_style.font.size = Pt(16 - (i-1) * 2)
-            heading_style.paragraph_format.space_before = Pt(12)
-            heading_style.paragraph_format.space_after = Pt(6)
-            if i == 1:
-                heading_style.paragraph_format.keep_with_next = True
-                heading_style.paragraph_format.page_break_before = True
+            try:
+                style = styles[f'Heading {i}']
+                style.font.name = default_font
+                # Optional: Adjust heading sizes, spacing, etc.
+                # style.font.size = Pt(16 - i)
+                # style.paragraph_format.space_before = Pt(12)
+                # style.paragraph_format.space_after = Pt(6)
+            except KeyError:
+                continue # Ignore if style doesn't exist
+
 
     def generate(self):
         """Main method to orchestrate the document generation process"""
+        output_file_path = None # Initialize
         try:
-            print("Loading input files...")
+            print("Initiating document generation...")
+            # 1. Load system prompt first
+            print("Loading system prompt...")
             system_prompt = self.load_system_prompt()
-            user_stories = self.load_user_stories()
-            db_design = self.load_database_design()
+            print("System prompt loaded.")
 
-            print("Generating GxP documentation content...")
+             # 2. Load user stories and db design using the paths provided in __init__
+            print("Loading user stories...")
+            user_stories = self.load_user_stories() # Reads from self.user_stories_path
+            print("User stories loaded.")
+
+            print("Loading database design...")
+            db_design = self.load_database_design() # Reads from self.db_schema_path
+            print("Database design loaded.")
+
+            # 3. Generate content via API
+            print("Generating GxP documentation content via API...")
             content = self.generate_gxp_content(system_prompt, user_stories, db_design)
+            print("Content generation complete.")
+            if not content or not content.strip():
+                 raise ValueError("Generated content is empty.")
 
+            # 4. Decide which output format(s) you need and create them
             # print("Creating Word document...")
-            # docx_file = self.create_word_document(content)
-            # print(f"Word document generated successfully: {docx_file}")
+            # docx_file = self.create_word_document(content) # Optional
+            # if docx_file: print(f"Word document generated: {docx_file}")
 
             print("Creating TXT document...")
-            txt_file = self.create_txt_document(content)
-            print(f"TXT document generated successfully: {txt_file}")
+            txt_file_path = self.create_txt_document(content) # Generate TXT
+            if not txt_file_path:
+                 raise RuntimeError("Failed to create TXT document.")
+            print(f"TXT document generation successful: {txt_file_path}")
+            output_file_path = txt_file_path # Set the path to return
 
-            # return docx_file, txt_file
-            return txt_file
+            # Return the path of the generated file the API needs to serve
+            # Ensure it returns a Path object or string as expected by the endpoint
+            return output_file_path
+
+        except FileNotFoundError as e:
+             # Handle missing input files gracefully
+             print(f"Error: Input file not found during generation - {e}")
+             # Re-raise specific error or a general one for the API
+             raise FileNotFoundError(f"Generation failed: Required input file missing. {e}")
+        except ValueError as e:
+             # Handle other value errors (e.g., empty content, API key missing)
+             print(f"Error during generation: {e}")
+             raise ValueError(f"Generation failed: {e}")
         except Exception as e:
-            print(f"Error in document generation process: {str(e)}")
-            raise
+             # Catch-all for other unexpected errors
+            print(f"Unexpected error in document generation process: {str(e)}")
+            import traceback
+            traceback.print_exc() # Log detailed error
+            raise RuntimeError(f"An unexpected error occurred during document generation: {str(e)}")

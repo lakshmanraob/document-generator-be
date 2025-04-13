@@ -1,5 +1,5 @@
 # src/api/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from .endpoints import uploads, generate
 import os
 
